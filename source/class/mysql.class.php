@@ -1,245 +1,469 @@
-<?php //004fb
-if(!extension_loaded('ionCube Loader')){$__oc=strtolower(substr(php_uname(),0,3));$__ln='ioncube_loader_'.$__oc.'_'.substr(phpversion(),0,3).(($__oc=='win')?'.dll':'.so');if(function_exists('dl')){@dl($__ln);}if(function_exists('_il_exec')){return _il_exec();}$__ln='/ioncube/'.$__ln;$__oid=$__id=realpath(ini_get('extension_dir'));$__here=dirname(__FILE__);if(strlen($__id)>1&&$__id[1]==':'){$__id=str_replace('\\','/',substr($__id,2));$__here=str_replace('\\','/',substr($__here,2));}$__rd=str_repeat('/..',substr_count($__id,'/')).$__here.'/';$__i=strlen($__rd);while($__i--){if($__rd[$__i]=='/'){$__lp=substr($__rd,0,$__i).$__ln;if(file_exists($__oid.$__lp)){$__ln=$__lp;break;}}}if(function_exists('dl')){@dl($__ln);}}else{die('The file '.__FILE__." is corrupted.\n");}if(function_exists('_il_exec')){return _il_exec();}echo("Site error: the ".(php_sapi_name()=='cli'?'ionCube':'<a href="http://www.ioncube.com">ionCube</a>')." PHP Loader needs to be installed. This is a widely used PHP extension for running ionCube protected PHP code, website security and malware blocking.\n\nPlease visit ".(php_sapi_name()=='cli'?'get-loader.ioncube.com':'<a href="http://get-loader.ioncube.com">get-loader.ioncube.com</a>')." for install assistance.\n\n");exit(199);
+<?php
+class mysql {
+    protected $db_prefix; // 表名的前缀
+    protected $conn; // 内部数据连接对象
+    protected $distinct = ''; // 去重复
+    protected $where = ''; // 条件
+    protected $table = ''; // 表名
+    protected $field = ''; // 字段
+    protected $order = ''; // 排序
+    protected $group = ''; // 分组
+    protected $limit = ''; // 查询的数量
+    protected $data = ''; // 存储的数据
+    protected $join = ''; // 连接
+    public $select_count = 0; // 查询出来的数量
+    public $last_sql = ''; // 上一条SQL语句
+    public $lastInsID = 0;
+
+    /*
+     * 状元分销www.bestfenxiao.com-QQ：2377575647*状元分销www.bestfenxiao.com-QQ：2377575647
+     * 初始时自动调用
+     */
+    public function __construct($other = array()) {
+        import('source.class.checkFunc');
+        $checkFunc = new checkFunc();
+        if (!function_exists('fdsrejsie3qklwewerzdagf4ds')) {
+            exit('error-4');
+        }
+        $checkFunc->cfdwdgfds3skgfds3szsd3idsj();
+        if (!function_exists('mysqli_connect')) {
+            bestfenxiao_tips('服务器空间PHP不支持MySql数据库', 'none');
+        }
+        
+        if (empty($other)) {
+            global $_G;
+        } else {
+            $_G['system'] = $other;
+        }
+        
+        $this->db_prefix = $_G['system']['DB_PREFIX'];
+        if (!$this->conn = @mysqli_connect($_G['system']['DB_HOST'], $_G['system']['DB_USER'], $_G['system']['DB_PWD'], 'bestfenxiao', $_G['system']['DB_PORT'])) {
+            switch ($this->geterrno()) {
+            case 2005 :
+                bestfenxiao_tips('连接数据库失败，数据库地址错误或者数据库服务器不可用', 'none');
+                break;
+            case 2003 :
+                bestfenxiao_tips('连接数据库失败，数据库端口错误', 'none');
+                break;
+            case 2006 :
+                bestfenxiao_tips('连接数据库失败，数据库服务器不可用', 'none');
+                break;
+            case 1045 :
+                bestfenxiao_tips('连接数据库失败，数据库用户名或密码错误', 'none');
+                break;
+            default :
+                bestfenxiao_tips('连接数据库失败，请检查数据库信息。错误编号：' . $this->geterrno(), 'none');
+                break;
+            }
+        }
+        if ($this->getMysqlVersion() > '4.1') {
+            mysqli_query($this->conn, "SET NAMES 'utf8'");
+        }
+        @mysqli_select_db($this->conn, $_G['system']['DB_NAME']) or bestfenxiao_tips('连接数据库失败，未找到您填写的数据库 <b>' . $_G['system']['DB_NAME'] . '</b>', 'none');
+    }
+
+    function table($table) {
+        if (is_array($table)) {
+            foreach ($table as $key=>$value) {
+                $lower_name = strtolower($key);
+                if ($key != $lower_name) {
+                    $now_arr[] = '`' . $this->db_prefix . $lower_name . '` `' . $value . '`';
+                } else {
+                    $now_arr[] .= '`' . $key . '` `' . $value . '` ';
+                }
+            }
+            $now_table = implode(',', $now_arr);
+        } else {
+            $lower_name = strtolower($table);
+            
+            $is_alias = strpos(" as ", $lower_name);
+            if ($is_alias === true)
+                $table_arr = preg_split('/(as)/', $lower_name);
+            if ($table != $lower_name) {
+                $now_table = '' . $this->db_prefix . $lower_name . '';
+            } else {
+                $now_table = '' . $table . '';
+            }
+        }
+        $this->table = $now_table;
+        return $this;
+    }
+
+    protected function parseKey(&$key) {
+        return $key;
+    }
+
+    function parseTable($tables) {
+        if (is_array($tables)) { // 支持别名定义
+            $array = array();
+            foreach ($tables as $table=>$alias) {
+                if (!is_numeric($table))
+                    $array[] = $this->parseKey($table) . ' ' . $this->parseKey($alias);
+                else
+                    $array[] = $this->parseKey($table);
+            }
+            $tables = $array;
+        } elseif (is_string($tables)) {
+            $tables = explode(',', $tables);
+            array_walk($tables, array(
+                    &$this,
+                    'parseKey' 
+            ));
+        }
+        return implode(',', $tables);
+    }
+
+    function field($field) {
+        $this->field = $field;
+        return $this;
+    }
+
+    function where($where) {
+        if (empty($where))
+            return $this;
+        if (is_array($where)) {
+            $connector = ' AND ';
+            if ($where['connector'] == 'OR') {
+                $connector = ' OR ';
+                unset($where['connector']);
+            }
+            foreach ($where as $key=>$value) {
+                if (is_array($value)) {
+                    if (is_array($value[0])) {
+                        foreach ($value as $k=>$v) {
+                            $now_arr[] = '`' . $key . '`' . $v[0] . "'" . $v[1] . "'";
+                        }
+                    } else {
+                        if ($value[0] == 'in') {
+                            $now_arr[] = '`' . $key . '` IN(' . implode(',', $value[1]) . ')';
+                        } else if ($value[0] == 'or') {
+                            $now_arr[] = '`' . $key . '` IN(' . implode(',', $value[1]) . ')';
+                        } else if ($value[0] == 'not in') {
+                            $now_arr[] = '`' . $key . '` NOT IN(' . implode(',', $value[1]) . ')';
+                        } else if ($value[0] == 'like') {
+                            $now_arr[] = '`' . $key . '` LIKE \'' . $value[1] . '\'';
+                        } elseif ($value[0] == 'find_in_set') {
+                            $now_arr[] = "find_in_set('" . $value[1] . "'," . $key . ")";
+                        } else {
+                            if ($value[1] === '')
+                                $value[1] = "''";
+                            $now_arr[] = '`' . $key . '`' . $value[0] . "'" . $value[1] . "'";
+                        }
+                    }
+                } elseif ($key == '_string') {
+                    $now_arr[] = $value;
+                } else {
+                    $now_arr[] = '`' . $key . '`=' . "'" . $value . "'";
+                }
+            }
+            $now_where = implode($connector, $now_arr);
+        } else {
+            $now_where = $where;
+        }
+        $this->where = $now_where;
+        return $this;
+    }
+
+    function data($data) {
+        $this->data = $data;
+        return $this;
+    }
+
+    function save() {
+        if (is_array($this->data)) {
+            foreach ($this->data as $key=>$value) {
+                $now_arr[] = '`' . $key . "`='$value'";
+            }
+            $now_data = implode(',', $now_arr);
+        } else {
+            $now_data = $this->data;
+        }
+        
+        $sql = 'UPDATE ' . $this->table . ' SET ' . $now_data;
+        
+        if (empty($this->where)) {
+            bestfenxiao_tips('为了保证数据库的安全，没有条件的更新不允许执行', 'none');
+        }
+        $sql .= ' WHERE ' . $this->where;
+        $this->clear_data();
+        return $this->execute($sql);
+    }
+
+    function add() {
+        if (is_array($this->data)) {
+            foreach ($this->data as $key=>$value) {
+                $key_str .= '`' . $key . '`,';
+                $value_str .= '\'' . $value . '\',';
+            }
+            $sql_str = '(' . rtrim($key_str, ',') . ') VALUES (' . rtrim($value_str, ',') . ')';
+        } else {
+            $sql_str = $this->data;
+        }
+        
+        $sql = 'INSERT INTO ' . $this->table . ' ' . $sql_str;
+        $rows = $this->execute($sql);
+        if ($this->lastInsID) {
+            return $this->lastInsID;
+        } elseif ($rows > 0) {
+            return $rows;
+        }
+    }
+
+    function addAll() {
+        if (!is_array($this->data[0]))
+            return false;
+        $tmp_fields = array_keys($this->data[0]);
+        foreach ($tmp_fields as $value) {
+            $fields[] = '`' . $value . '`';
+        }
+        foreach ($this->data as $key=>$value) {
+            $value_str = '';
+            foreach ($value as $k=>$v) {
+                $value_str .= '\'' . $v . '\',';
+            }
+            $sql_str[] = '(' . rtrim($value_str, ',') . ')';
+        }
+        $sql = 'INSERT INTO ' . $this->table . ' (' . implode(',', $fields) . ') VALUES ' . implode(',', $sql_str);
+        return $this->execute($sql);
+    }
+
+    function distinct($flag = false) {
+        $this->distinct = $flag;
+        return $this;
+    }
+
+    function order($order) {
+        $this->order = $order;
+        return $this;
+    }
+
+    function group($group) {
+        $this->group = $group;
+        return $this;
+    }
+
+    function join($join) {
+        $joinStr = '';
+        if (!empty($join)) {
+            if (is_array($join)) {
+                foreach ($join as $key=>$_join) {
+                    if (false !== stripos($_join, 'JOIN'))
+                        $joinStr .= ' ' . $_join;
+                    else
+                        $joinStr .= ' LEFT JOIN ' . $_join;
+                }
+            } else {
+                // $joinStr .= ' LEFT JOIN '.$join;
+                $lower_name = strtolower($join);
+                if ($join != $lower_name) {
+                    
+                    $joinStr .= ' LEFT JOIN ' . $this->db_prefix . $lower_name;
+                } else {
+                    $joinStr .= ' LEFT JOIN ' . $join;
+                }
+            }
+        }
+        // 将__TABLE_NAME__这样的字符串替换成正规的表名,并且带上前缀和后缀
+        // echo $this->db_prefix;
+        $this->join .= preg_replace("/__([A-Z_-]+)__/", $this->db_prefix . ".strtolower('$1')", $joinStr);
+        return $this;
+    }
+
+    function limit($limit) {
+        $this->limit = $limit;
+        return $this;
+    }
+
+    function find() {
+        $this->limit = 1;
+        $result_query = $this->fetch_array($this->dbselect());
+        if (is_array($result_query)) {
+            return $result_query;
+        } else {
+            return array();
+        }
+    }
+
+    function count($field) {
+        if ($this->distinct) {
+            $field = 'DISTINCT(' . $field . ')';
+        }
+        $this->field = 'COUNT(' . $field . ') AS `bestfenxiao_count`';
+        $this->limit = '1';
+        $row = $this->fetch_array($this->dbselect());
+        return $row['bestfenxiao_count'];
+    }
+
+    function sum($field) {
+        $this->field = 'SUM(' . $field . ') AS `bestfenxiao_sum`';
+        $this->limit = '1';
+        $row = $this->fetch_array($this->dbselect());
+        return $row['bestfenxiao_sum'];
+    }
+
+    function max($field) {
+        $this->field = '`' . $field . '`';
+        $this->limit = '1';
+        $this->order = '`' . $field . '` DESC';
+        $row = $this->fetch_array($this->dbselect());
+        return $row["$field"];
+    }
+
+    function delete() {
+        $sql = 'DELETE FROM ' . $this->table;
+        if (empty($this->where)) {
+            bestfenxiao_tips('为了保证数据库的安全，没有条件的删除不允许执行', 'none');
+        }
+        $sql .= ' WHERE ' . $this->where;
+        $this->clear_data();
+        return $this->execute($sql);
+    }
+
+    function select() {
+        $result_query = $this->dbselect();
+        return $this->getall($result_query);
+    }
+
+    function query($sql) {
+        // error_log($sql);
+        $this->last_sql = $sql;
+        $result_query = @mysqli_query($this->conn, $sql);
+        return $this->getall($result_query);
+    }
+
+    function getall($result_query) {
+        if ($result_query === false)
+            return array();
+        $num_rows = @mysqli_num_rows($result_query);
+        $this->select_count = $num_rows;
+        if ($num_rows > 0) {
+            while($row = $this->fetch_array($result_query)) {
+                $result[] = $row;
+            }
+            return $result;
+        } else {
+            return array();
+        }
+    }
+
+    function execute($sql) {
+        // error_log($sql);
+        $this->last_sql = $sql;
+        $result_query = @mysqli_query($this->conn, $sql);
+        $this->lastInsID = mysqli_insert_id($this->conn);
+        return mysqli_affected_rows($this->conn);
+    }
+
+    function setInc($field, $step = 1) {
+        $sql = 'UPDATE ' . $this->table . ' SET `' . $field . '`=`' . $field . '`+' . $step;
+        
+        if ($this->where) {
+            $sql .= ' WHERE ' . $this->where;
+        }
+        return $this->execute($sql);
+    }
+
+    function setDec($field, $step = 1) {
+        $sql = 'UPDATE ' . $this->table . ' SET `' . $field . '`=`' . $field . '`-' . $step;
+        
+        if ($this->where) {
+            $sql .= ' WHERE ' . $this->where;
+        }
+        return $this->execute($sql);
+    }
+
+    function setField($field, $value) {
+        $sql = 'UPDATE ' . $this->table . ' SET `' . $field . "`='" . $value . "'";
+        
+        if ($this->where) {
+            $sql .= ' WHERE ' . $this->where;
+        }
+        return $this->execute($sql);
+    }
+
+    /*
+     * 状元分销www.bestfenxiao.com-QQ：2377575647*状元分销www.bestfenxiao.com-QQ：2377575647
+     * 发送查询语句供内部使用
+     *
+     */
+    function dbselect() {
+        $sql = 'SELECT ';
+        if ($this->field) {
+            $sql .= $this->field . ' FROM ' . $this->table;
+        } else {
+            $sql .= '* FROM ' . $this->table;
+        }
+        if ($this->join) {
+            $sql .= '  ' . $this->join;
+        }
+        if ($this->where) {
+            $sql .= ' WHERE ' . $this->where;
+        }
+        if ($this->group) {
+            $sql .= ' GROUP BY ' . $this->group;
+        }
+        if ($this->order) {
+            $sql .= ' ORDER BY ' . $this->order;
+        }
+        if ($this->limit) {
+            $sql .= ' LIMIT ' . $this->limit;
+        }
+        $this->clear_data();
+        // error_log($sql);
+        $this->last_sql = $sql;
+        $result = @mysqli_query($this->conn, $sql);
+        return $result;
+    }
+
+    /*
+     * 状元分销www.bestfenxiao.com-QQ：2377575647*状元分销www.bestfenxiao.com-QQ：2377575647
+     * 清空使用到的所有资源，以便下次使用
+     *
+     */
+    function clear_data() {
+        $this->field = '';
+        $this->where = '';
+        $this->order = '';
+        $this->join = '';
+        $this->limit = '';
+        $this->data = '';
+    }
+
+    /*
+     * 状元分销www.bestfenxiao.com-QQ：2377575647*状元分销www.bestfenxiao.com-QQ：2377575647
+     * 从结果集中取得一行作为关联数组/数字索引数组
+     *
+     */
+    function fetch_array($query, $type = 1) {
+        if ($query && mysqli_num_rows($query) > 0) {
+            return mysqli_fetch_array($query, $type);
+        } else {
+            return false;
+        }
+    }
+
+    /*
+     * 状元分销www.bestfenxiao.com-QQ：2377575647*状元分销www.bestfenxiao.com-QQ：2377575647
+     * 获取mysql错误
+     */
+    function geterror() {
+        return mysqli_error($this->conn);
+    }
+
+    /*
+     * 状元分销www.bestfenxiao.com-QQ：2377575647*状元分销www.bestfenxiao.com-QQ：2377575647
+     * 获取mysql错误编码
+     */
+    function geterrno() {
+        return mysqli_errno($this->conn);
+    }
+
+    /*
+     * 状元分销www.bestfenxiao.com-QQ：2377575647*状元分销www.bestfenxiao.com-QQ：2377575647
+     * 取得数据库版本信息
+     */
+    function getMysqlVersion() {
+        return mysqli_get_server_info($this->conn);
+    }
+}
 ?>
-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
